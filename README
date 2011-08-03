@@ -1,0 +1,5 @@
+Requires Python 2.7
+
+To test:
+   python2.7 -m unittest discover
+
