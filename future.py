@@ -1,10 +1,10 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import copy
 import logging
 import sys
 import threading
 
-class Future(object):
+class Future:
     """
     A future that is used when queuing events in a Context.
     The future can be used to determine the result of the event processing.
@@ -14,14 +14,14 @@ class Future(object):
         Based on implementation by David Perry and modifications by Bjorn Pettersen and Graham Horler.
     """
 
-    STATE_ACTIVE    = 'Active'
+    STATE_ACTIVE = 'Active'
     STATE_COMPLETED = 'Completed'
     STATE_CANCELLED = 'Cancelled'
     STATE_EXCEPTION = 'Exception'
 
-    def __init__( self, function, *args, **kwargs ):
-        super( Future, self ).__init__()
-        self.log = logging.getLogger( self.__class__.__name__ )
+    def __init__(self, function, *args, **kwargs):
+        super(Future, self).__init__()
+        self.log = logging.getLogger(self.__class__.__name__)
 
         self.function = function
         self.args = args
@@ -29,12 +29,12 @@ class Future(object):
 
         self.__state = self.STATE_ACTIVE
         self.__result = None
-        self.__excpt  = None
+        self.__excpt = None
 
         # Notify using this Condition when the result is ready.
         self._condition = threading.Condition()
 
-    def __call__( self ):
+    def __call__(self):
         """
         If the event is done being processed, return the result;
         otherwise, block.  If the future was cancelled while blocking,
@@ -42,7 +42,7 @@ class Future(object):
         event, throw it here.
         """
 
-        self.log.debug( '__call__' )
+        self.log.debug('__call__')
 
         self._condition.acquire()
         while self.__state == self.STATE_ACTIVE:
@@ -59,15 +59,15 @@ class Future(object):
 
         # Copy the __result to prevent accidental tampering with it.
         # Use deepcopy to get the entire result.
-        return copy.deepcopy( self.__result )
+        return copy.deepcopy(self.__result)
 
-    def cancel( self ):
+    def cancel(self):
         """
         If a future is blocked and waiting for its result, cancel it.
         This future will return a result of None to the blocked thread.
         """
 
-        self.log.debug( 'cancel' )
+        self.log.debug('cancel')
 
         # Assume the future cannot be cancelled.
         cancelled = False
@@ -85,29 +85,29 @@ class Future(object):
         # Return if it was successfully cancelled.
         return cancelled
 
-    def process( self ):
+    def process(self):
         """
         Process an event and save the result.
         """
 
-        self.log.debug( 'process' )
+        self.log.debug('process')
 
         self._condition.acquire()
 
         if self.__state == self.STATE_ACTIVE:
             try:
-                self.__result = self.function( *self.args, **self.kwargs )
+                self.__result = self.function(*self.args, **self.kwargs)
                 self.__state = self.STATE_COMPLETED
-            except Exception, e:
-                self.log.error( 'process has thrown an exception, ' + str(e) + '.' )
+            except Exception as e:
+                self.log.error('process has thrown an exception, ' + str(e) + '.')
                 self.__result = self.STATE_EXCEPTION
                 self.__excpt = sys.exc_info()
 
         self._condition.notify()
         self._condition.release()
 
-    def __str__( self ):
-        return 'state: %s, result: %s, exception: %s' % ( str(self.__state), str(self.__result), str(self.__excpt) )
+    def __str__(self):
+        return 'state: %s, result: %s, exception: %s' % (str(self.__state), str(self.__result), str(self.__excpt))
 
 class ScheduledFuture(Future):
     """
@@ -122,59 +122,58 @@ class ScheduledFuture(Future):
     ScheduledFuture extends Future by allowing it to cancel the future at
     either of these points in time.
 
-    After the specified seconds, scheduleFunction will be run.  This function
+    After the specified seconds, schedule_function will be run.  This function
     should call (or eventually cause to call) ScheduledFuture.process().
     As with a normal future, ScheduledFuture.process() will call function.
     """
 
-    def __init__( self, seconds, scheduleFunction, function, *args, **kwargs ):
-        super( ScheduledFuture, self ).__init__( function, *args, **kwargs )
-        self.log = logging.getLogger( self.__class__.__name__ )
+    def __init__(self, seconds, schedule_function, function, *args, **kwargs):
+        super(ScheduledFuture, self).__init__(function, *args, **kwargs)
+        self.log = logging.getLogger(self.__class__.__name__)
 
-        self.scheduleFunction = scheduleFunction
+        self.schedule_function = schedule_function
 
-        self.timer = threading.Timer( seconds, self.__timeout )
+        self.timer = threading.Timer(seconds, self.__timeout)
         self.timer.start()
 
-    def __timeout( self ):
+    def __timeout(self):
         """
         The timeout handler that queues the event for processing.
         """
 
-        self.log.debug( '__timeout' )
+        self.log.debug('__timeout')
 
         self.timer = None
-        self.scheduleFunction( self )
+        self.schedule_function(self)
 
-    def cancel( self ):
+    def cancel(self):
         """
         If the timer is still running, cancel the timer and do not queue the
         event for processing.
         Then cancel the base Future object.
         """
 
-        self.log.debug( 'cancel' )
+        self.log.debug('cancel')
 
         if self.timer:
             # If a valid timer exists, then cancel it.
             self.timer.cancel()
             self.timer = None
 
-        return super( ScheduledFuture, self ).cancel()
+        return super(ScheduledFuture, self).cancel()
 
-class FutureMimic(object):
+class FutureMimic:
     """
     The FutureMimic class is necessary to mimic the Future object.
     This allows applications to treat futures and non-futures
         the exact same way.
     """
 
-    def __init__( self, result ):
+    def __init__(self, result):
         self.result = result
 
-    def __call__( self ):
+    def __call__(self):
         return self.result
 
-    def __str__( self ):
+    def __str__(self):
         return str(self.result)
-

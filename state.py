@@ -1,28 +1,28 @@
-#!/usr/bin/env python
-from iron.dispatcher import Dispatcher
+#!/usr/bin/env python3
 import logging
+from dispatcher import Dispatcher
 
-class StateEvent(object):
+class StateEvent:
     """
-    An event that can also specify state transitions using the newState and
-    oldState member variables.
+    An event that can also specify state transitions using the new_state and
+    old_state member variables.
     """
-    def __init__( self, id, newState, oldState = None ):
-        super( StateEvent, self ).__init__()
+    def __init__(self, id, new_state, old_state=None):
+        super(StateEvent, self).__init__()
         self.id = id
-        self.newState = newState
-        self.oldState = oldState
+        self.new_state = new_state
+        self.old_state = old_state
 
-    def __call__( self ):
+    def __call__(self):
         return self.id
 
-    def __str__( self ):
-        return 'id: %s, newState: %s, oldState: %s' % ( str(self.id), str(self.newState), str(self.oldState) )
+    def __str__(self):
+        return 'id: %s, new_state: %s, old_state: %s' % (str(self.id), str(self.new_state), str(self.old_state))
 
-class State(object):
-    EVENT_ENTER        = 'Enter'
-    EVENT_LEAVE        = 'Leave'
-    EVENT_TIMEOUT      = 'Timeout'
+class State:
+    EVENT_ENTER = 'Enter'
+    EVENT_LEAVE = 'Leave'
+    EVENT_TIMEOUT = 'Timeout'
     EVENT_STATE_CHANGE = 'StateChange'
 
     """
@@ -30,101 +30,100 @@ class State(object):
     Enforces optional state timeouts.
     Can generate internal leave, enter, and timeout events.
     """
-    def __init__( self, obj, initialState, stateTimeouts = {} ):
-        super( State, self ).__init__()
-        self.log = logging.getLogger( self.__class__.__name__ )
+    def __init__(self, obj, initial_state, state_timeouts=None):
+        super(State, self).__init__()
+        self.log = logging.getLogger(self.__class__.__name__)
 
         if not obj:
-            raise TypeError( 'This state does not have an owner object.' )
+            raise TypeError('This state does not have an owner object.')
         self.obj = obj
 
-        if not initialState:
-            raise TypeError( 'This state does not have an initial state.' )
-        self.initialState = initialState
+        if not initial_state:
+            raise TypeError('This state does not have an initial state.')
+        self.initial_state = initial_state
 
-        self.currentState = None
-        self.stateTimeouts = stateTimeouts
-        self.stateTimer = None
-        self.resetState()
+        self.current_state = None
+        self.state_timeouts = state_timeouts if state_timeouts else {}
+        self.state_timer = None
+        self.reset_state()
 
-    def resetState( self ):
+    def reset_state(self):
         """
         Set the current state to the initial state.
         """
-        if not self.initialState:
-            raise TypeError( 'This state does not have an initial state.' )
+        if not self.initial_state:
+            raise TypeError('This state does not have an initial state.')
 
-        self.log.info( 'Resetting state to ' + str(self.initialState) + '.' )
-        self.currentState = self.initialState
-        self.stopStateTimer()
+        self.log.info('Resetting state to ' + str(self.initial_state) + '.')
+        self.current_state = self.initial_state
+        self.stop_state_timer()
 
-    def identifyState( self, event ):
+    def identify_state(self, event): #pylint: disable=unused-argument
         """
         Return the current state as the state variable.
         """
 
-        return str(self.currentState)
+        return str(self.current_state)
 
-    def changeState( self, newState, notify = False ):
+    def change_state(self, new_state, notify=False):
         """
         Transition to the new state and optionally notify listeners.
         The state transition will also generate and process internal leave and enter events.
         """
 
-        if self.currentState == None:
-            raise Exception( 'This state does not have a current state.' )
+        if self.current_state is None:
+            raise Exception('This state does not have a current state.')
 
-        oldState = self.currentState
+        old_state = self.current_state
 
         # Only execute block if the state is really changing.
-        if oldState != newState:
+        if old_state != new_state:
             # Stop state timer.
-            self.stopStateTimer()
+            self.stop_state_timer()
 
             # Leave pseudo-event.
-            Dispatcher.getInstance().send( StateEvent( self.EVENT_LEAVE, newState = newState, oldState = oldState ), self.obj, self.obj )
+            Dispatcher().send(StateEvent(self.EVENT_LEAVE, new_state=new_state, old_state=old_state), self.obj, self.obj)
 
             # Change state.
-            self.log.info( 'Changing state from %s to %s.' % ( str(oldState), str(newState) ) )
-            self.currentState = newState
+            self.log.info('Changing state from %s to %s.' % (str(old_state), str(new_state)))
+            self.current_state = new_state
 
             # Enter pseudo-event.
-            Dispatcher.getInstance().send( StateEvent( self.EVENT_ENTER, newState = newState, oldState = oldState ), self.obj, self.obj )
+            Dispatcher().send(StateEvent(self.EVENT_ENTER, new_state=new_state, old_state=old_state), self.obj, self.obj)
 
             # Notify listeners.
             if notify:
-                self.log.info( 'Notify listeners of the state change.' )
-                Dispatcher.getInstance().notify( StateEvent( self.EVENT_STATE_CHANGE, newState = newState, oldState = oldState ), self.obj )
+                self.log.info('Notify listeners of the state change.')
+                Dispatcher().notify(StateEvent(self.EVENT_STATE_CHANGE, new_state=new_state, old_state=old_state), self.obj)
 
             # Start state timer.
-            self.startStateTimer()
+            self.start_state_timer()
 
-    def startStateTimer( self ):
+    def start_state_timer(self):
         """
         If the current state is configured with a state timeout, then start the state timer.
         """
 
-        stateTimeout = self.stateTimeouts.get( self.currentState, None )
+        state_timeout = self.state_timeouts.get(self.current_state, None)
 
-        if stateTimeout:
-            self.log.info( 'Start state timer with a timeout of ' + str(stateTimeout) + '.' )
+        if state_timeout:
+            self.log.info('Start state timer with a timeout of ' + str(state_timeout) + '.')
 
-            if self.stateTimer:
-                self.stopStateTimer()
+            if self.state_timer:
+                self.stop_state_timer()
 
-            self.stateTimer = Dispatcher.getInstance().schedule( stateTimeout, StateEvent( self.EVENT_TIMEOUT, newState = self.currentState ), self.obj, self.obj )
+            self.state_timer = Dispatcher().schedule(state_timeout, StateEvent(self.EVENT_TIMEOUT, new_state=self.current_state), self.obj, self.obj)
 
-    def stopStateTimer( self ):
+    def stop_state_timer(self):
         """
         Stop the state timer if it is running.
         """
 
-        if self.stateTimer:
-            self.log.info( 'Stop state timer.' )
+        if self.state_timer:
+            self.log.info('Stop state timer.')
 
-            self.stateTimer.cancel()
-            self.stateTimer = None
+            self.state_timer.cancel()
+            self.state_timer = None
 
-    def __str__( self ):
-        return 'state: %s, timer: %s, timeouts: %s' % ( str(self.currentState), str(self.stateTimer), str(self.stateTimeouts) )
-
+    def __str__(self):
+        return 'state: %s, timer: %s, timeouts: %s' % (str(self.current_state), str(self.state_timer), str(self.state_timeouts))

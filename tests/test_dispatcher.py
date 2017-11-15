@@ -1,62 +1,55 @@
 #! /usr/bin/python
-from iron.event import Event
-from iron.dispatcher import Dispatcher
-from iron.context import Context
-from threading import Timer
 import logging
 import sys
-import unittest
+from event import Event
+from dispatcher import Dispatcher
+from context import Context
 
-class TestDispatcher(unittest.TestCase):
-    class TestObj(object):
-        def __init__( self ):
-            self.log = logging.getLogger( self.__class__.__name__ )
+class TestDispatcher:
+    class SampleObj:
+        def __init__(self):
+            self.log = logging.getLogger(self.__class__.__name__)
             self.lastHandler = None
 
-        def on1( self, event, *args, **kwargs ):
+        def on1(self, event, *args, **kwargs):
             self.lastHandler = sys._getframe().f_code.co_name
-            self.log.debug( sys._getframe().f_code.co_name + '' )
+            self.log.debug(sys._getframe().f_code.co_name + '')
 
-        def on2( self, event, *args, **kwargs ):
+        def on2(self, event, *args, **kwargs):
             self.lastHandler = sys._getframe().f_code.co_name
-            self.log.debug( sys._getframe().f_code.co_name + '' )
+            self.log.debug(sys._getframe().f_code.co_name + '')
 
-        def on4( self, event, *args, **kwargs ):
+        def on4(self, event, *args, **kwargs):
             self.lastHandler = sys._getframe().f_code.co_name
-            self.log.debug( sys._getframe().f_code.co_name + '' )
+            self.log.debug(sys._getframe().f_code.co_name + '')
 
-        def onDefault( self, event, *args, **kwargs ):
+        def onDefault(self, event, *args, **kwargs):
             self.lastHandler = sys._getframe().f_code.co_name
-            self.log.debug( sys._getframe().f_code.co_name + '' )
+            self.log.debug(sys._getframe().f_code.co_name + '')
 
-    def runTest( self ):
-        c = Context( 'Root' )
+    def test(self):
+        c = Context('Root')
         c.start()
 
-        o0 = self.TestObj()
-        Dispatcher.add( obj=o0, parentObj=None, context=c )
+        o0 = self.SampleObj()
+        Dispatcher.add(obj=o0, parent_obj=None, context=c)
 
-        o1 = self.TestObj()
-        Dispatcher.add( obj=o1, parentObj=None, context=c )
-        Dispatcher.addListener( srcObj=o1, dstObj=o0 )
+        o1 = self.SampleObj()
+        Dispatcher.add(obj=o1, parent_obj=None, context=c)
+        Dispatcher.add_listener(src_obj=o1, dst_obj=o0)
 
-        Dispatcher.send( event=Event( '1' ), srcObj=o0, dstObj=o1 )
-        assert( str(o1.lastHandler) == 'on1' )
+        Dispatcher.send(event=Event('1'), src_obj=o0, dst_obj=o1)
+        assert str(o1.lastHandler) == 'on1'
 
-        Dispatcher.queue( event=Event( '2' ), srcObj=o0, dstObj=o1 )
-        #assert( str(o1.lastHandler) == 'on2' )
+        Dispatcher.queue(event=Event('2'), src_obj=o0, dst_obj=o1)
+        #assert str(o1.lastHandler) == 'on2'
 
-        Dispatcher.send( event=Event( '3' ), srcObj=o0, dstObj=o1 )
-        #assert( str(o1.lastHandler) == 'on3' )
+        Dispatcher.send(event=Event('3'), src_obj=o0, dst_obj=o1)
+        #assert str(o1.lastHandler) == 'on3'
 
-        Dispatcher.notify( event=Event( '4' ), srcObj=o1 )
-        #assert( str(o1.lastHandler) == 'on4' )
-        Dispatcher.notify( event=Event( '4' ), srcObj=o1 )
-        #assert( str(o1.lastHandler) == 'on4' )
+        Dispatcher.notify(event=Event('4'), src_obj=o1)
+        #assert str(o1.lastHandler) == 'on4'
+        Dispatcher.notify(event=Event('4'), src_obj=o1)
+        #assert str(o1.lastHandler) == 'on4'
 
         c.stop()
-
-if __name__ == '__main__':
-    logging.basicConfig( level=logging.DEBUG, format='%(asctime)s.%(msecs)d %(levelname)s %(threadName)s(%(thread)d) %(name)s %(module)s.%(funcName)s#%(lineno)d %(message)s', datefmt='%d.%m.%Y %H:%M:%S' )
-    unittest.main()
-

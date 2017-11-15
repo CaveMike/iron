@@ -1,5 +1,7 @@
-Requires Python 2.7
+Requires Python 3 and pytest
+
+To install:
+   pip3 install pytest
 
 To test:
-   python2.7 -m unittest discover
-
+   pytest
