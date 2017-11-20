@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import logging
+from typing import Dict
 from dispatcher import Dispatcher
 
 class StateEvent:
@@ -7,13 +8,13 @@ class StateEvent:
     An event that can also specify state transitions using the new_state and
     old_state member variables.
     """
-    def __init__(self, id, new_state, old_state=None):
+    def __init__(self, id: str, new_state: str, old_state: str=None) -> None:
         super(StateEvent, self).__init__()
         self.id = id
         self.new_state = new_state
         self.old_state = old_state
 
-    def __call__(self):
+    def __call__(self) -> str:
         return self.id
 
     def __str__(self):
@@ -30,7 +31,7 @@ class State:
     Enforces optional state timeouts.
     Can generate internal leave, enter, and timeout events.
     """
-    def __init__(self, obj, initial_state, state_timeouts=None):
+    def __init__(self, obj, initial_state: str, state_timeouts: Dict[str,int]=None) -> None:
         super(State, self).__init__()
         self.log = logging.getLogger(self.__class__.__name__)
 
@@ -40,14 +41,14 @@ class State:
 
         if not initial_state:
             raise TypeError('This state does not have an initial state.')
-        self.initial_state = initial_state
+        self.initial_state: str = initial_state
 
-        self.current_state = None
-        self.state_timeouts = state_timeouts if state_timeouts else {}
+        self.current_state: str = None
+        self.state_timeouts: Dict[str,int] = state_timeouts if state_timeouts else {}
         self.state_timer = None
         self.reset_state()
 
-    def reset_state(self):
+    def reset_state(self) -> None:
         """
         Set the current state to the initial state.
         """
@@ -58,14 +59,14 @@ class State:
         self.current_state = self.initial_state
         self.stop_state_timer()
 
-    def identify_state(self, event): #pylint: disable=unused-argument
+    def identify_state(self, event) -> str: #pylint: disable=unused-argument
         """
         Return the current state as the state variable.
         """
 
         return str(self.current_state)
 
-    def change_state(self, new_state, notify=False):
+    def change_state(self, new_state: str, notify: bool=False) -> None:
         """
         Transition to the new state and optionally notify listeners.
         The state transition will also generate and process internal leave and enter events.
@@ -99,7 +100,7 @@ class State:
             # Start state timer.
             self.start_state_timer()
 
-    def start_state_timer(self):
+    def start_state_timer(self) -> None:
         """
         If the current state is configured with a state timeout, then start the state timer.
         """
@@ -114,7 +115,7 @@ class State:
 
             self.state_timer = Dispatcher().schedule(state_timeout, StateEvent(self.EVENT_TIMEOUT, new_state=self.current_state), self.obj, self.obj)
 
-    def stop_state_timer(self):
+    def stop_state_timer(self) -> None:
         """
         Stop the state timer if it is running.
         """

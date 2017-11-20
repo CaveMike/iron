@@ -1,18 +1,23 @@
 #!/usr/bin/env python3
 import inspect
 import logging
+from typing import Dict, Generic, TypeVar
 from delegator import Delegator
 from event import Event
 from future import FutureMimic
 
+NodeType = TypeVar('NodeType')
+NodeDictType = Dict[object, NodeType]
+
 class Singleton(type):
-    _instances = {}
+    _instances: NodeDictType = {}
     def __call__(cls, *args, **kwargs):
         if cls not in cls._instances:
             cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
         return cls._instances[cls]
 
 class Dispatcher(metaclass=Singleton):
+
     """
     A simple dispatcher that can send events from one object to another.
     The dispatcher creates a helper node for each object.  This node is used to
@@ -20,7 +25,7 @@ class Dispatcher(metaclass=Singleton):
     organized in a parent-child relationship so that objects can send events to
     their parents.
     """
-    class Node:
+    class Node(Generic[NodeType]):
         """
         An reference to an object that processes events by finding and calling
         an appropriate event handler.
@@ -37,11 +42,11 @@ class Dispatcher(metaclass=Singleton):
         def __str__(self):
             return 'obj: %s, parent: %s, context: %s, listeners: %s' % (str(self.obj), str(self.parent), str(self.context), str(len(self.listeners)))
 
-    def __init__(self):
+    def __init__(self) -> None:
         super(Dispatcher, self).__init__()
         self.log = logging.getLogger(self.__class__.__name__)
 
-        self.nodes = {}
+        self.nodes: NodeDictType={}
 
     @staticmethod
     def get_caller():
@@ -53,7 +58,7 @@ class Dispatcher(metaclass=Singleton):
         return None
 
     @staticmethod
-    def add(obj, parent_obj=None, context=None):
+    def add(obj, parent_obj=None, context: object=None):
         """
         Add an object to the dispatcher.
         """
@@ -73,7 +78,7 @@ class Dispatcher(metaclass=Singleton):
         if not context:
             raise Exception('A node cannot be added without a context.  Failed to find the context for the object, ' + str(obj) + '.')
 
-        node = self.Node(obj, parent_obj, context)
+        node: Dispatcher.Node = self.Node(obj, parent_obj, context)
         self.nodes[obj] = node
 
     @staticmethod
